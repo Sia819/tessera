@@ -1,15 +1,15 @@
 """
 FastAPI 애플리케이션 엔트리포인트.
 
-- 설정 미완료 시: 설정 마법사 (setup.html)
-- 설정 완료 후: 대시보드 (dashboard.html)
+- React SPA(index.html)를 서빙하고, API 라우터를 등록한다.
+- 설정 미완료 시 React가 /setup으로 리다이렉트
 - 웹훅 엔드포인트는 설정 완료 후에만 동작 (503)
 """
 
 import logging
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -40,40 +40,33 @@ async def startup():
         logger.warning("설정 미완료 — 설정 마법사 모드로 시작합니다.")
 
 
-# 라우터 등록
+# API 라우터 등록
 from app.routers import webhook, setup, dashboard  # noqa: E402
 
 app.include_router(webhook.router)
 app.include_router(setup.router)
 app.include_router(dashboard.router)
 
-# 정적 파일 서빙
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-
-
-@app.get("/")
-async def root():
-    """설정 여부에 따라 대시보드 또는 설정 마법사를 표시한다."""
-    if app_state.configured:
-        return FileResponse(STATIC_DIR / "dashboard.html")
-    return FileResponse(STATIC_DIR / "setup.html")
-
-
-@app.get("/setup")
-async def setup_page():
-    """설정 마법사 페이지."""
-    return FileResponse(STATIC_DIR / "setup.html")
-
-
-@app.get("/settings")
-async def settings_page():
-    """설정 편집 페이지."""
-    return FileResponse(STATIC_DIR / "settings.html")
-
 
 @app.get("/health")
 async def health():
     return {"status": "ok", "configured": app_state.configured}
+
+
+# React SPA 정적 파일 서빙
+# assets/ 디렉토리 (JS, CSS 번들)
+app.mount("/assets", StaticFiles(directory=str(STATIC_DIR / "assets")), name="assets")
+
+
+@app.get("/{full_path:path}")
+async def serve_spa(request: Request, full_path: str):
+    """API가 아닌 모든 경로에서 React SPA의 index.html을 반환한다."""
+    # 정적 파일이 존재하면 직접 반환 (favicon.ico 등)
+    file_path = STATIC_DIR / full_path
+    if full_path and file_path.is_file():
+        return FileResponse(file_path)
+    # 그 외는 SPA index.html로 라우팅
+    return FileResponse(STATIC_DIR / "index.html")
 
 
 if __name__ == "__main__":
