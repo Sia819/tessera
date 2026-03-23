@@ -18,11 +18,13 @@ _raw = _load_toml()
 
 
 class Settings:
+    # Server
+    port: int = _raw.get("server", {}).get("port", 8000)
+
     # GitHub
     github_token: str = _raw["github"]["token"]
     github_webhook_secret: str = _raw["github"].get("webhook_secret", "")
-    github_sources_raw: list[str] = _raw["github"]["sources"]
-    port: int = _raw.get("server", {}).get("port", 8000)
+    github_sources: list[dict] = _raw["github"]["sources"]
 
     # Notion
     notion_token: str = _raw["notion"]["token"]
@@ -38,27 +40,26 @@ class Settings:
     notion_prop_visibility: str = _props.get("visibility", "Visibility")
     notion_prop_repo_id: str = _props.get("repo_id", "repository-id")
 
-    # Visibility labels
-    _vis = _raw.get("visibility", {})
-    visibility_label_public: str = _vis.get("public", "Public")
-    visibility_label_private: str = _vis.get("private", "Private")
-    visibility_label_error: str = _vis.get("error", "Error")
-    _visibility_map: dict[str, str] = _vis.get("map", {})
+    # Visibility
+    visibility_label_error: str = _raw.get("visibility", {}).get("error", "Error")
 
     def get_sources(self) -> list[dict[str, str]]:
-        """Parse sources list into [{type, name}]."""
+        """Parse sources into [{type, name, label}]."""
         sources = []
-        for src in self.github_sources_raw:
-            src = src.strip()
-            if src.startswith("org:"):
-                sources.append({"type": "org", "name": src[4:]})
-            else:
-                sources.append({"type": "user", "name": src})
+        for src in self.github_sources:
+            sources.append({
+                "type": src.get("type", "user"),
+                "name": src["name"],
+                "label": src["label"],
+            })
         return sources
 
-    def get_visibility_map(self) -> dict[str, str]:
-        """Return org-name to label mapping."""
-        return self._visibility_map
+    def get_source_label(self, owner: str) -> str | None:
+        """소스 이름으로 라벨을 조회한다."""
+        for src in self.github_sources:
+            if src["name"] == owner:
+                return src["label"]
+        return None
 
 
 settings = Settings()

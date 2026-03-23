@@ -136,10 +136,8 @@ class NotionClient:
 
     @staticmethod
     def _get_visibility_label(repo: RepoData) -> str:
-        """소속 조직과 공개 여부에 따라 가시성 라벨을 반환한다."""
-        visibility_map = settings.get_visibility_map()
-        if repo.owner in visibility_map:
-            return visibility_map[repo.owner]
-        if repo.private:
-            return settings.visibility_label_private
-        return settings.visibility_label_public
+        """소스(계정/조직)에 설정된 라벨을 반환한다."""
+        label = settings.get_source_label(repo.owner)
+        if label:
+            return label
+        return settings.visibility_label_error
