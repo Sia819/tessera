@@ -41,12 +41,12 @@ class Settings:
     visibility_label_error: str = _raw.get("visibility", {}).get("error", "Error")
 
     def get_sources(self) -> list[dict[str, str]]:
-        """Parse sources into [{type, name, label}]."""
+        """Parse sources into [{name, type, label}]."""
         sources = []
         for src in self.github_sources:
             sources.append({
-                "type": src.get("type", "user"),
                 "name": src["name"],
+                "type": src.get("type", "user"),
                 "label": src["label"],
             })
         return sources
