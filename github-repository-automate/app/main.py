@@ -5,6 +5,7 @@ FastAPI 애플리케이션 엔트리포인트.
 - POST /webhook/sync-all:   Notion 버튼 → 전체 동기화
 - POST /webhook/sync-one:   Notion 버튼 → 단일 리포 동기화
 - POST /webhook/github-push: GitHub push 이벤트 → 해당 리포 동기화
+- POST /webhook/deduplicate: repo_id 없는 중복 행 정리
 - GET  /health:             서버 상태 확인
 
 모든 동기화는 BackgroundTasks로 비동기 실행하여 웹훅 타임아웃을 방지한다.
@@ -113,6 +114,30 @@ async def webhook_github_push(request: Request, background_tasks: BackgroundTask
 
     background_tasks.add_task(sync_service.sync_on_push, full_name)
     return {"status": "accepted", "message": f"Push 동기화를 시작합니다: {full_name}"}
+
+
+@app.post("/webhook/deduplicate")
+async def webhook_deduplicate(request: Request, background_tasks: BackgroundTasks):
+    """repo_id 없는 중복 행을 찾아 아카이브한다."""
+    body = await request.body()
+    body_text = body.decode(errors="replace")
+    logger.info(f"[deduplicate] 요청 수신: {body_text}")
+
+    try:
+        data = json.loads(body_text) if body_text.strip() else {}
+    except json.JSONDecodeError:
+        data = {}
+
+    page_id = data.get("page_id")
+
+    if page_id:
+        # 개별 페이지 중복 제거
+        background_tasks.add_task(sync_service.deduplicate_one, page_id)
+        return {"status": "accepted", "message": f"개별 중복 제거: {page_id}"}
+    else:
+        # 전체 중복 제거
+        background_tasks.add_task(sync_service.deduplicate)
+        return {"status": "accepted", "message": "전체 중복 제거를 시작합니다."}
 
 
 def _extract_page_id(data: dict) -> str | None:
