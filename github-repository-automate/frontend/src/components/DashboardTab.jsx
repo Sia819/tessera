@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import {
   formatCount,
   formatRelativeTime,
@@ -15,7 +16,7 @@ export default function DashboardTab({ dashboard, logs, syncing, onNavigate }) {
   const { last_sync_result, sync_in_progress } = dashboard
   const isSyncing = syncing || sync_in_progress
   const sr = last_sync_result ?? {}
-  const recentLogs = sortLogs(logs).slice(0, 5)
+  const recentLogs = useMemo(() => sortLogs(logs).slice(0, 5), [logs])
 
   return (
     <div className="space-y-5 pr-1">

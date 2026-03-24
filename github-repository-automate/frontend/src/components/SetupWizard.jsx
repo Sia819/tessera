@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 
 const STEPS = [
   {
@@ -49,7 +49,6 @@ function getErrorMessage(error, fallback) {
 
 export default function SetupWizard({ onComplete, isReconfigure = false }) {
   const [step, setStep] = useState(0)
-  const [maxStep, setMaxStep] = useState(0)
 
   const [githubToken, setGithubToken] = useState('')
   const [githubUser, setGithubUser] = useState(null)
@@ -244,16 +243,17 @@ export default function SetupWizard({ onComplete, isReconfigure = false }) {
     }
   }
 
-  const canNext = () => {
-    if (step === 0) return !!githubUser
-    if (step === 1) return accounts.some((account) => account.name.trim())
-    if (step === 2) return !!notionResult
-    return true
-  }
+  // 검증 결과에서 파생: 도달 가능한 최대 스텝 (MVVM Computed Property)
+  const reachableStep = useMemo(() => {
+    if (!githubUser) return 0
+    if (!accounts.some((a) => a.name.trim())) return 1
+    if (!notionResult) return 2
+    return STEPS.length - 1
+  }, [githubUser, accounts, notionResult])
 
   const currentStep = STEPS[step]
-  const activeAccounts = accounts.filter((account) => account.name.trim())
-  const mappedPropertyCount = Object.values(propertyMap).filter(Boolean).length
+  const activeAccounts = useMemo(() => accounts.filter((a) => a.name.trim()), [accounts])
+  const mappedPropertyCount = useMemo(() => Object.values(propertyMap).filter(Boolean).length, [propertyMap])
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-5 xl:grid xl:grid-cols-[320px_minmax(0,1fr)]">
@@ -277,7 +277,7 @@ export default function SetupWizard({ onComplete, isReconfigure = false }) {
               <button
                 key={item.title}
                 type="button"
-                disabled={index > maxStep}
+                disabled={index > reachableStep}
                 onClick={() => setStep(index)}
                 className={`wizard-step-item w-full ${isActive ? 'is-active' : ''} ${isComplete ? 'is-complete' : ''}`}
               >
@@ -603,8 +603,8 @@ export default function SetupWizard({ onComplete, isReconfigure = false }) {
           {step < STEPS.length - 1 ? (
             <button
               type="button"
-              onClick={() => { setStep((prev) => { const next = prev + 1; setMaxStep((m) => Math.max(m, next)); return next }); }}
-              disabled={!canNext()}
+              onClick={() => setStep((prev) => prev + 1)}
+              disabled={step >= reachableStep}
               className="primary-button"
             >
               다음 단계

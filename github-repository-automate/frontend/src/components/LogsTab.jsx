@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   formatDateTime,
   formatLogDetail,
@@ -27,17 +27,16 @@ export default function LogsTab({ logs, syncing, onSync }) {
     return () => window.clearTimeout(timer)
   }, [copied])
 
-  const sorted = sortLogs(logs)
-  const filteredLogs = activeFilter === 'all'
-    ? sorted
-    : sorted.filter((log) => log.type === activeFilter)
-
-  const counts = FILTERS.reduce((result, filter) => {
-    result[filter.key] = filter.key === 'all'
-      ? logs.length
-      : logs.filter((log) => log.type === filter.key).length
-    return result
-  }, {})
+  const { filteredLogs, counts } = useMemo(() => {
+    const sorted = sortLogs(logs)
+    return {
+      filteredLogs: activeFilter === 'all' ? sorted : sorted.filter((log) => log.type === activeFilter),
+      counts: FILTERS.reduce((result, filter) => {
+        result[filter.key] = filter.key === 'all' ? logs.length : logs.filter((log) => log.type === filter.key).length
+        return result
+      }, {}),
+    }
+  }, [logs, activeFilter])
 
   const handleCopy = async () => {
     if (filteredLogs.length === 0) return

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import DashboardTab from './components/DashboardTab'
 import SettingsTab from './components/SettingsTab'
 import LogsTab from './components/LogsTab'
@@ -239,9 +239,9 @@ export default function App() {
     )
   }
 
-  const currentTab = TABS.find((tab) => tab.key === activeTab) ?? TABS[0]
-  const accountCount = dashboard?.accounts?.length ?? 0
-  const statusLabel = cancelling ? '중지하는 중' : syncing ? '동기화 진행 중' : '대기 중'
+  const currentTab = useMemo(() => TABS.find((tab) => tab.key === activeTab) ?? TABS[0], [activeTab])
+  const accountCount = useMemo(() => dashboard?.accounts?.length ?? 0, [dashboard])
+  const statusLabel = useMemo(() => cancelling ? '중지하는 중' : syncing ? '동기화 진행 중' : '대기 중', [cancelling, syncing])
 
   return (
     <ScreenFrame>

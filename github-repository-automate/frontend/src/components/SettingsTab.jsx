@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 const PROPERTY_FIELDS = [
   { key: 'name', label: '이름', placeholder: 'Name' },
@@ -150,8 +150,8 @@ export default function SettingsTab() {
     }
   }
 
-  const connectedAccounts = form.github_accounts.filter((account) => account.name.trim())
-  const mappedProperties = Object.values(form.notion_properties).filter(Boolean).length
+  const connectedAccounts = useMemo(() => form.github_accounts.filter((a) => a.name.trim()), [form.github_accounts])
+  const mappedProperties = useMemo(() => Object.values(form.notion_properties).filter(Boolean).length, [form.notion_properties])
 
   if (loading) {
     return (
