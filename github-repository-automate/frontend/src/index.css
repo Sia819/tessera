@@ -306,7 +306,13 @@ textarea {
   transform: translateY(-1px);
 }
 
-.primary-button:disabled,
+.primary-button:disabled {
+  background: var(--c-bg-active);
+  color: var(--c-fg-muted);
+  cursor: not-allowed;
+  transform: none;
+}
+
 .secondary-button:disabled,
 .theme-toggle:disabled {
   opacity: 0.55;
