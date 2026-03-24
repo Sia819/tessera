@@ -16,6 +16,7 @@ class AppState:
     last_sync_result: dict | None = None
     sync_logs: list[dict] = field(default_factory=list)
     sync_in_progress: bool = False
+    cancel_requested: bool = False
 
     MAX_LOGS = 100
 

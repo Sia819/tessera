@@ -59,6 +59,17 @@ async def _run_sync(svc: SyncService) -> None:
         app_state.add_log({"type": "sync_error", "error": str(e)})
     finally:
         app_state.sync_in_progress = False
+        app_state.cancel_requested = False
+
+
+@router.post("/api/sync/cancel")
+async def cancel_sync():
+    """진행 중인 동기화를 중지 요청한다."""
+    if not app_state.sync_in_progress:
+        raise HTTPException(409, "진행 중인 동기화가 없습니다.")
+    app_state.cancel_requested = True
+    app_state.add_log({"type": "sync_cancel", "scope": "all"})
+    return {"status": "accepted", "message": "중지 요청이 전달되었습니다."}
 
 
 @router.get("/api/sync/logs")

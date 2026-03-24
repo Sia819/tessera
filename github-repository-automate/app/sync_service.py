@@ -22,6 +22,7 @@ import logging
 from app import config
 from app.github_client import GitHubClient
 from app.notion_client import NotionClient
+from app.state import app_state
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,12 @@ class SyncService:
             created = 0
             updated = 0
 
+            cancelled = False
             for repo in repos:
+                if app_state.cancel_requested:
+                    logger.info("=== 동기화 중지 요청 감지 ===")
+                    cancelled = True
+                    break
                 page_id = id_lookup.get(repo.repo_id)
                 try:
                     if page_id:
@@ -63,9 +69,11 @@ class SyncService:
                 except Exception as e:
                     logger.error(f"{repo.name} 동기화 실패: {e}")
 
-            # 5. 중복 제거 (페이지 목록 갱신 후)
-            pages = await self.notion.query_all_pages()
-            dedup_result = await self._deduplicate(pages)
+            # 5. 중복 제거 (중지되지 않은 경우만)
+            dedup_result = {"archived": 0, "marked_error": 0}
+            if not cancelled:
+                pages = await self.notion.query_all_pages()
+                dedup_result = await self._deduplicate(pages)
 
             result = {
                 "total_repos": len(repos),
@@ -74,8 +82,9 @@ class SyncService:
                 "sanitized": sanitized,
                 "archived": dedup_result["archived"],
                 "marked_error": dedup_result["marked_error"],
+                "cancelled": cancelled,
             }
-            logger.info(f"=== 전체 동기화 완료: {result} ===")
+            logger.info(f"=== 전체 동기화 {'중지됨' if cancelled else '완료'}: {result} ===")
             return result
         finally:
             await self.github.close()
