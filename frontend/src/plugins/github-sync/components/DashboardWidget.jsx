@@ -9,6 +9,8 @@ import {
 } from '../../../shared/utils/formatters'
 
 export default function DashboardTab({ dashboard, logs, syncing, onNavigate }) {
+  const recentLogs = useMemo(() => sortLogs(logs).slice(0, 5), [logs])
+
   if (!dashboard) {
     return <p className="p-6 text-sm text-fg-muted">대시보드 데이터를 불러오지 못했습니다.</p>
   }
@@ -16,7 +18,6 @@ export default function DashboardTab({ dashboard, logs, syncing, onNavigate }) {
   const { last_sync_result, sync_in_progress } = dashboard
   const isSyncing = syncing || sync_in_progress
   const sr = last_sync_result ?? {}
-  const recentLogs = useMemo(() => sortLogs(logs).slice(0, 5), [logs])
 
   return (
     <div className="space-y-5 pr-1">
