@@ -5,6 +5,9 @@ import LogsTab from './components/LogsTab'
 import SetupWizard from './components/SetupWizard'
 import ThemeToggle from './shared/components/ThemeToggle'
 import Spinner from './shared/components/Spinner'
+import ScreenFrame from './shared/components/ScreenFrame'
+import CancelConfirmDialog from './shared/components/CancelConfirmDialog'
+import StopIcon from './shared/components/StopIcon'
 import { formatRelativeTime } from './shared/utils/formatters'
 import useDashboard from './features/dashboard/hooks/useDashboard'
 
@@ -236,35 +239,3 @@ export default function App() {
   )
 }
 
-function CancelConfirmDialog({ onConfirm, onCancel }) {
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40" onClick={onCancel}>
-      <div className="panel-subtle mx-4 w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-semibold text-fg">동기화를 중지할까요?</h3>
-        <p className="mt-2 text-sm leading-6 text-fg-muted">
-          현재 진행 중인 동기화가 다음 항목 처리 전에 중단됩니다. 이미 처리된 항목은 유지됩니다.
-        </p>
-        <div className="mt-5 flex justify-end gap-2">
-          <button type="button" onClick={onCancel} className="secondary-button">계속 진행</button>
-          <button type="button" onClick={onConfirm} className="primary-button" style={{ background: 'var(--c-err)' }}>중지</button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function StopIcon({ className = 'h-4 w-4' }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <rect x="4" y="4" width="16" height="16" rx="2" />
-    </svg>
-  )
-}
-
-function ScreenFrame({ children }) {
-  return (
-    <div className="h-[100svh] overflow-hidden">
-      {children}
-    </div>
-  )
-}
