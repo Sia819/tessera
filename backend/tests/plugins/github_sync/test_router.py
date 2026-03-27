@@ -1,10 +1,15 @@
 """GitHub Sync 플러그인 라우터 엔드포인트 테스트."""
 
+from pathlib import Path
+
+import pytest
 from fastapi.testclient import TestClient
 
-from backend.main import app
+from backend.main import app, STATIC_DIR
 
 client = TestClient(app)
+
+has_static = (STATIC_DIR / "index.html").exists()
 
 
 class Test플러그인엔드포인트:
@@ -46,6 +51,7 @@ class Test플러그인엔드포인트:
         res = client.get("/api/plugins/github-sync/settings")
         assert res.status_code == 404
 
+    @pytest.mark.skipif(not has_static, reason="backend/static/ 빌드 출력물 없음 (CI 환경)")
     def test_알수없는_경로는_SPA_index_html(self):
         res = client.get("/some-random-path")
         assert res.status_code == 200
