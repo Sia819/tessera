@@ -7,9 +7,10 @@ Tessera 애플리케이션 엔트리포인트.
 
 라우터 등록 순서가 중요하다:
   1. config 로드
-  2. 플러그인 디스커버리 (라우터 등록)
-  3. Core 라우터
-  4. SPA catch-all (반드시 마지막)
+  2. 인증 미들웨어 (항상) + auth 라우터
+  3. 플러그인 디스커버리 (라우터 등록)
+  4. Core 라우터
+  5. SPA catch-all (반드시 마지막)
 """
 
 import logging
@@ -21,6 +22,9 @@ from fastapi.staticfiles import StaticFiles
 
 from backend.core.config import try_load_config
 from backend.core.plugin_registry import discover_plugins
+from backend.core.auth import auth_configured
+from backend.core.auth.middleware import AuthMiddleware
+from backend.core.auth.router import router as auth_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -39,10 +43,19 @@ if _config:
 else:
     logger.warning("config.toml 없음 — 설정 마법사 모드로 시작합니다.")
 
-# ── 2. 플러그인 디스커버리 (라우터가 SPA catch-all보다 먼저 등록되어야 한다) ──
+# ── 2. 인증 미들웨어 (항상 활성) + auth 라우터 ──
+app.add_middleware(AuthMiddleware)
+app.include_router(auth_router)
+
+if auth_configured():
+    logger.info("OAuth 인증 설정됨")
+else:
+    logger.info("인증 미설정 — 초기 설정 페이지를 표시합니다.")
+
+# ── 3. 플러그인 디스커버리 (라우터가 SPA catch-all보다 먼저 등록되어야 한다) ──
 discover_plugins(app)
 
-# ── 3. Core 라우터 ──
+# ── 4. Core 라우터 ──
 from backend.routers import plugins as plugins_router  # noqa: E402
 
 app.include_router(plugins_router.router)
@@ -57,7 +70,7 @@ async def health():
     }
 
 
-# ── 4. React SPA 정적 파일 서빙 (반드시 마지막) ──
+# ── 5. React SPA 정적 파일 서빙 (반드시 마지막) ──
 if STATIC_DIR.exists() and (STATIC_DIR / "assets").exists():
     app.mount("/assets", StaticFiles(directory=str(STATIC_DIR / "assets")), name="assets")
 
