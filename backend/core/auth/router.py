@@ -29,6 +29,13 @@ GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 
 
+def _is_https(request: Request) -> bool:
+    """TLS 종료 프록시 뒤에서도 HTTPS 여부를 올바르게 판별한다."""
+    if request.url.scheme == "https":
+        return True
+    return request.headers.get("x-forwarded-proto", "").lower() == "https"
+
+
 # ═══════════════════════════════════════════════════════════════
 #  상태 확인
 # ═══════════════════════════════════════════════════════════════
@@ -153,7 +160,7 @@ async def auth_login(request: Request):
         value=state,
         httponly=True,
         samesite="lax",
-        secure=request.url.scheme == "https",
+        secure=_is_https(request),
         max_age=600,
         path="/auth",
     )
@@ -228,7 +235,7 @@ async def auth_callback(request: Request, code: str = "", state: str = ""):
         value=session_token,
         httponly=True,
         samesite="lax",
-        secure=request.url.scheme == "https",
+        secure=_is_https(request),
         max_age=cfg.session_max_age,
         path="/",
     )

@@ -7,6 +7,7 @@
 새 엔드포인트를 추가해도 감사 로그는 자동으로 남는다.
 """
 
+import ipaddress
 import logging
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -19,13 +20,31 @@ from backend.core import audit
 
 logger = logging.getLogger(__name__)
 
+_PRIVATE_NETWORKS = (
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("127.0.0.0/8"),
+)
+
+
+def _is_trusted_proxy(ip: str) -> bool:
+    """직접 연결 IP가 사설 대역(리버스 프록시)인지 판별한다."""
+    try:
+        addr = ipaddress.ip_address(ip)
+        return any(addr in net for net in _PRIVATE_NETWORKS)
+    except ValueError:
+        return False
+
 
 def _get_client_ip(request: Request) -> str:
-    """클라이언트 IP를 추출한다. 리버스 프록시 헤더 우선."""
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    """클라이언트 IP를 추출한다. 사설 IP에서 연결된 경우만 X-Forwarded-For를 신뢰."""
+    direct_ip = request.client.host if request.client else "unknown"
+    if direct_ip != "unknown" and _is_trusted_proxy(direct_ip):
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+    return direct_ip
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -89,7 +108,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if path == "/health":
             return True
         # 외부 서비스 웹훅만 JWT 우회 (핸들러에서 HMAC 자체 검증)
-        if path.endswith("/webhook/github-push"):
+        if path.startswith("/api/plugins/") and path.endswith("/webhook/github-push"):
             return True
         if not path.startswith("/api/"):
             return True

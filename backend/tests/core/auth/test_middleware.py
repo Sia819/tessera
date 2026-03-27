@@ -1,6 +1,6 @@
 """인증 미들웨어 테스트."""
 
-from backend.core.auth.middleware import AuthMiddleware
+from backend.core.auth.middleware import AuthMiddleware, _is_trusted_proxy, _get_client_ip
 
 
 class TestAuth우회경로:
@@ -47,6 +47,11 @@ class TestWebhook보안:
         assert AuthMiddleware._skip_auth("/api/plugins/github-sync/webhook/github-push") is True
         assert AuthMiddleware._skip_auth("/api/plugins/other/webhook/github-push") is True
 
+    def test_플러그인_외_api_경로는_우회_불가(self):
+        """플러그인 prefix 없는 API 경로는 github-push여도 우회 불가."""
+        assert AuthMiddleware._skip_auth("/api/webhook/github-push") is False
+        assert AuthMiddleware._skip_auth("/api/evil/webhook/github-push") is False
+
 
 class Test정적파일제외:
     """_is_static: 감사 로그에서 제외할 정적 파일."""
@@ -81,6 +86,24 @@ class Test정적파일제외:
     def test_SPA_페이지접근은_로그_기록(self):
         assert AuthMiddleware._is_static("/") is False
         assert AuthMiddleware._is_static("/some-random-path") is False
+
+
+class TestClientIP:
+    """X-Forwarded-For: 사설 IP 프록시일 때만 신뢰."""
+
+    def test_사설IP에서_XFF_신뢰(self):
+        assert _is_trusted_proxy("172.17.0.1") is True
+        assert _is_trusted_proxy("192.168.0.1") is True
+        assert _is_trusted_proxy("10.0.0.1") is True
+        assert _is_trusted_proxy("127.0.0.1") is True
+
+    def test_공용IP에서_XFF_무시(self):
+        assert _is_trusted_proxy("8.8.8.8") is False
+        assert _is_trusted_proxy("1.2.3.4") is False
+
+    def test_잘못된_IP_형식(self):
+        assert _is_trusted_proxy("unknown") is False
+        assert _is_trusted_proxy("") is False
 
 
 class Test설계_강제성:
