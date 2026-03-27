@@ -13,14 +13,25 @@ import useAuth from './features/auth/hooks/useAuth'
 import useDashboard from './features/dashboard/hooks/useDashboard'
 import plugins from './plugins/registry'
 
-const SystemLogPanel = lazy(() => import('./features/system/components/SystemLogPanel'))
+const SystemLogsTab = lazy(() => import('./features/system/components/SystemLogsTab'))
 
+// position: 'top' (기본) | 'bottom' (하단 고정)
+// bottom 탭은 사이드바 하단에 구분선과 함께 배치된다.
+// 어떤 탭이든 position: 'bottom'으로 바꾸면 하단으로 이동한다.
 const CORE_TABS = [
   {
     key: 'dashboard',
     label: 'Dashboard',
     title: '운영 대시보드',
     description: '통계, 최근 이벤트, 연결된 계정을 하나의 워크스페이스에서 확인합니다.',
+  },
+  {
+    key: 'system',
+    label: 'System',
+    title: '시스템 로그',
+    description: '접속 IP, 인증 시도, API 호출 등 감사 로그를 추적합니다.',
+    component: SystemLogsTab,
+    position: 'bottom',
   },
 ]
 
@@ -31,10 +42,13 @@ const PLUGIN_TABS = plugins.flatMap((p) =>
     title: tab.title,
     description: tab.description,
     component: tab.component,
+    position: tab.position || 'top',
   })),
 )
 
-const TABS = [...CORE_TABS, ...PLUGIN_TABS]
+const ALL_TABS = [...CORE_TABS, ...PLUGIN_TABS]
+const NAV_TOP = ALL_TABS.filter((t) => (t.position || 'top') === 'top')
+const NAV_BOTTOM = ALL_TABS.filter((t) => t.position === 'bottom')
 
 export default function App() {
   const { authState, user, error: authError, login, logout, onSetupComplete } = useAuth()
@@ -46,7 +60,7 @@ export default function App() {
     handleSync, handleCancelSync, handleSetupComplete,
   } = useDashboard()
 
-  const currentTab = useMemo(() => TABS.find((tab) => tab.key === activeTab) ?? TABS[0], [activeTab])
+  const currentTab = useMemo(() => ALL_TABS.find((tab) => tab.key === activeTab) ?? ALL_TABS[0], [activeTab])
 
   // 인증 상태 로딩 중
   if (authState === null) {
@@ -163,39 +177,36 @@ export default function App() {
             </div>
 
             <nav className="mt-8 flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:gap-1">
-              {TABS.map((tab) => (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`nav-item min-w-[180px] lg:min-w-0 ${activeTab === tab.key ? 'is-active' : ''}`}
-                >
-                  <div className="min-w-0 flex-1 text-left">
-                    <div className="text-sm font-medium text-fg">{tab.label}</div>
-                    <div className="mt-1 truncate text-xs text-fg-muted">
-                      {tab.description}
-                    </div>
-                  </div>
-                </button>
+              {NAV_TOP.map((tab) => (
+                <NavButton key={tab.key} tab={tab} active={activeTab === tab.key} onClick={() => setActiveTab(tab.key)} />
               ))}
             </nav>
 
-            {user && (
-              <div className="mt-auto hidden border-t border-edge pt-4 lg:block">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate text-xs text-fg-muted" title={user.email}>
-                    {user.email}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={logout}
-                    className="shrink-0 text-xs text-fg-faint transition-colors hover:text-fg-muted"
-                  >
-                    로그아웃
-                  </button>
+            <div className="mt-auto hidden lg:block">
+              {NAV_BOTTOM.length > 0 && (
+                <nav className="flex flex-col gap-1 border-t border-edge pt-3 pb-3">
+                  {NAV_BOTTOM.map((tab) => (
+                    <NavButton key={tab.key} tab={tab} active={activeTab === tab.key} onClick={() => setActiveTab(tab.key)} />
+                  ))}
+                </nav>
+              )}
+              {user && (
+                <div className="border-t border-edge pt-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-xs text-fg-muted" title={user.email}>
+                      {user.email}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={logout}
+                      className="shrink-0 text-xs text-fg-faint transition-colors hover:text-fg-muted"
+                    >
+                      로그아웃
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
           </aside>
 
@@ -272,7 +283,7 @@ export default function App() {
                   />
                 </div>
               )}
-              {PLUGIN_TABS.map((tab) =>
+              {ALL_TABS.filter((t) => t.component).map((tab) =>
                 activeTab === tab.key ? (
                   <div key={tab.key} className="h-full">
                     <Suspense fallback={<div className="flex h-full items-center justify-center"><Spinner className="h-6 w-6 text-accent" /></div>}>
@@ -282,14 +293,24 @@ export default function App() {
                 ) : null,
               )}
             </main>
-
-            {/* 시스템 로그 하단 패널 */}
-            <Suspense fallback={null}>
-              <SystemLogPanel />
-            </Suspense>
           </section>
         </div>
       </div>
     </ScreenFrame>
+  )
+}
+
+function NavButton({ tab, active, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`nav-item min-w-[180px] lg:min-w-0 ${active ? 'is-active' : ''}`}
+    >
+      <div className="min-w-0 flex-1 text-left">
+        <div className="text-sm font-medium text-fg">{tab.label}</div>
+        <div className="mt-1 truncate text-xs text-fg-muted">{tab.description}</div>
+      </div>
+    </button>
   )
 }
