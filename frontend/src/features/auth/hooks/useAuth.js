@@ -1,5 +1,22 @@
 import { useCallback, useEffect, useState } from 'react'
 
+const AUTH_ERROR_MESSAGES = {
+  not_whitelisted: '이 이메일은 접근이 허용되지 않습니다.',
+  google_error: 'Google 인증 중 오류가 발생했습니다.',
+  invalid_state: '잘못된 인증 요청입니다. 다시 시도해주세요.',
+  email_not_verified: '이메일 인증이 완료되지 않은 계정입니다.',
+}
+
+function getInitialError() {
+  const params = new URLSearchParams(window.location.search)
+  const authError = params.get('auth_error')
+  if (authError) {
+    window.history.replaceState(null, '', '/')
+    return AUTH_ERROR_MESSAGES[authError] || '인증 오류가 발생했습니다.'
+  }
+  return null
+}
+
 /**
  * 인증 상태 관리 Hook.
  *
@@ -12,26 +29,16 @@ import { useCallback, useEffect, useState } from 'react'
 export default function useAuth() {
   const [authState, setAuthState] = useState(null)
   const [user, setUser] = useState(null)
-  const [error, setError] = useState(null)
+  const [error] = useState(getInitialError)
+  const [refreshKey, setRefreshKey] = useState(0)
 
-  const checkStatus = useCallback(() => {
-    // URL에서 auth 에러 확인 (Google 콜백 리다이렉트)
-    const params = new URLSearchParams(window.location.search)
-    const authError = params.get('auth_error')
-    if (authError) {
-      const messages = {
-        not_whitelisted: '이 이메일은 접근이 허용되지 않습니다.',
-        google_error: 'Google 인증 중 오류가 발생했습니다.',
-        invalid_state: '잘못된 인증 요청입니다. 다시 시도해주세요.',
-        email_not_verified: '이메일 인증이 완료되지 않은 계정입니다.',
-      }
-      setError(messages[authError] || '인증 오류가 발생했습니다.')
-      window.history.replaceState(null, '', '/')
-    }
+  useEffect(() => {
+    let cancelled = false
 
     fetch('/auth/status')
       .then((res) => res.json())
       .then((data) => {
+        if (cancelled) return
         if (!data.auth_configured) {
           setAuthState('setup_required')
         } else if (data.authenticated) {
@@ -41,12 +48,12 @@ export default function useAuth() {
           setAuthState('unauthenticated')
         }
       })
-      .catch(() => setAuthState('setup_required'))
-  }, [])
+      .catch(() => {
+        if (!cancelled) setAuthState('setup_required')
+      })
 
-  useEffect(() => {
-    checkStatus()
-  }, [checkStatus])
+    return () => { cancelled = true }
+  }, [refreshKey])
 
   const login = useCallback(() => {
     window.location.href = '/auth/login'
@@ -59,8 +66,8 @@ export default function useAuth() {
   }, [])
 
   const onSetupComplete = useCallback(() => {
-    checkStatus()
-  }, [checkStatus])
+    setRefreshKey((k) => k + 1)
+  }, [])
 
   return { authState, user, error, login, logout, onSetupComplete }
 }
