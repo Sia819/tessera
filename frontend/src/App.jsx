@@ -8,7 +8,10 @@ import Spinner from './shared/components/Spinner'
 import ScreenFrame from './shared/components/ScreenFrame'
 import CancelConfirmDialog from './shared/components/CancelConfirmDialog'
 import StopIcon from './shared/components/StopIcon'
+import LoginPage from './features/auth/components/LoginPage'
+import AuthSetupPage from './features/auth/components/AuthSetupPage'
 import { formatRelativeTime } from './shared/utils/formatters'
+import useAuth from './features/auth/hooks/useAuth'
 import useDashboard from './features/dashboard/hooks/useDashboard'
 
 const TABS = [
@@ -33,6 +36,7 @@ const TABS = [
 ]
 
 export default function App() {
+  const { authState, user, error: authError, login, logout, onSetupComplete } = useAuth()
   const {
     configured, activeTab, setActiveTab, showSetup, setShowSetup,
     dashboard, logs, syncing, cancelling,
@@ -43,6 +47,39 @@ export default function App() {
 
   const currentTab = useMemo(() => TABS.find((tab) => tab.key === activeTab) ?? TABS[0], [activeTab])
 
+  // 인증 상태 로딩 중
+  if (authState === null) {
+    return (
+      <ScreenFrame>
+        <div className="flex h-full items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <Spinner className="h-6 w-6 text-accent" />
+            <p className="text-sm text-fg-muted">인증 상태를 확인하고 있습니다</p>
+          </div>
+        </div>
+      </ScreenFrame>
+    )
+  }
+
+  // 인증 초기 설정 필요
+  if (authState === 'setup_required') {
+    return (
+      <ScreenFrame>
+        <AuthSetupPage onComplete={onSetupComplete} />
+      </ScreenFrame>
+    )
+  }
+
+  // 로그인 필요
+  if (authState === 'unauthenticated') {
+    return (
+      <ScreenFrame>
+        <LoginPage onLogin={login} error={authError} />
+      </ScreenFrame>
+    )
+  }
+
+  // 앱 로딩 중 (인증 통과 후)
   if (configured === null) {
     return (
       <ScreenFrame>
@@ -82,6 +119,11 @@ export default function App() {
                       className="secondary-button"
                     >
                       대시보드로 돌아가기
+                    </button>
+                  )}
+                  {user && (
+                    <button type="button" onClick={logout} className="secondary-button" title={user.email}>
+                      로그아웃
                     </button>
                   )}
                   <ThemeToggle />
@@ -141,6 +183,23 @@ export default function App() {
                 </button>
               ))}
             </nav>
+
+            {user && (
+              <div className="mt-auto hidden border-t border-edge pt-4 lg:block">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-xs text-fg-muted" title={user.email}>
+                    {user.email}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={logout}
+                    className="shrink-0 text-xs text-fg-faint transition-colors hover:text-fg-muted"
+                  >
+                    로그아웃
+                  </button>
+                </div>
+              </div>
+            )}
 
           </aside>
 
