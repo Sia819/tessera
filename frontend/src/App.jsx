@@ -1,4 +1,4 @@
-import { Suspense, useMemo } from 'react'
+import { lazy, Suspense, useMemo } from 'react'
 import DashboardTab from './components/DashboardTab'
 import SetupWizard from './components/SetupWizard'
 import ThemeToggle from './shared/components/ThemeToggle'
@@ -13,12 +13,21 @@ import useAuth from './features/auth/hooks/useAuth'
 import useDashboard from './features/dashboard/hooks/useDashboard'
 import plugins from './plugins/registry'
 
+const SystemLogsTab = lazy(() => import('./features/system/components/SystemLogsTab'))
+
 const CORE_TABS = [
   {
     key: 'dashboard',
     label: 'Dashboard',
     title: '운영 대시보드',
     description: '통계, 최근 이벤트, 연결된 계정을 하나의 워크스페이스에서 확인합니다.',
+  },
+  {
+    key: 'system',
+    label: 'System',
+    title: '시스템 로그',
+    description: '접속 IP, 인증 시도, API 호출 등 감사 로그를 추적합니다.',
+    component: SystemLogsTab,
   },
 ]
 
@@ -270,7 +279,7 @@ export default function App() {
                   />
                 </div>
               )}
-              {PLUGIN_TABS.map((tab) =>
+              {[...CORE_TABS.filter((t) => t.component), ...PLUGIN_TABS].map((tab) =>
                 activeTab === tab.key ? (
                   <div key={tab.key} className="h-full">
                     <Suspense fallback={<div className="flex h-full items-center justify-center"><Spinner className="h-6 w-6 text-accent" /></div>}>

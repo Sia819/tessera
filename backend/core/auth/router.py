@@ -19,6 +19,8 @@ from pydantic import BaseModel
 from backend.core.auth import auth_configured, get_auth_config, reload_auth_config
 from backend.core.auth.config import save_auth_config
 from backend.core.auth.jwt_utils import create_token, verify_token
+from backend.core import audit
+from backend.core.auth.middleware import _get_client_ip
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -66,7 +68,7 @@ class AuthSetupRequest(BaseModel):
 
 
 @router.post("/setup")
-async def auth_setup(req: AuthSetupRequest):
+async def auth_setup(req: AuthSetupRequest, req_raw: Request):
     """초기 인증 설정을 저장한다. 이미 설정된 경우 403."""
     if auth_configured():
         return JSONResponse(
@@ -112,6 +114,9 @@ async def auth_setup(req: AuthSetupRequest):
     save_auth_config(data)
     reload_auth_config()
 
+    ip = _get_client_ip(req_raw)
+    audit.add_entry(ip=ip, method="POST", path="/auth/setup", status=200,
+                    event="auth_setup", detail=f"allowed: {', '.join(emails)}")
     logger.info("인증 초기 설정 완료: 허용 이메일 %d개", len(emails))
     return {"status": "ok", "allowed_emails": emails}
 
@@ -203,7 +208,11 @@ async def auth_callback(request: Request, code: str = "", state: str = ""):
     if not user_info.get("email_verified", False):
         return RedirectResponse(url="/?auth_error=email_not_verified")
 
+    ip = _get_client_ip(request)
+
     if email not in cfg.allowed_emails:
+        audit.add_entry(ip=ip, method="GET", path="/auth/callback", status=403,
+                        event="login_rejected", user=email, detail="not in whitelist")
         logger.warning("Login rejected: %s not in allowed_emails", email)
         return RedirectResponse(url="/?auth_error=not_whitelisted")
 
@@ -224,6 +233,9 @@ async def auth_callback(request: Request, code: str = "", state: str = ""):
         path="/",
     )
     response.delete_cookie(key="tessera_oauth_state", path="/auth")
+
+    audit.add_entry(ip=ip, method="GET", path="/auth/callback", status=302,
+                    event="login_success", user=email)
     return response
 
 
