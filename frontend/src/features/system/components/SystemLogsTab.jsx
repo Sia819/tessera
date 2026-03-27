@@ -144,7 +144,7 @@ export default function SystemLogsTab() {
               return (
                 <div
                   key={`${log.timestamp}-${i}`}
-                  className="grid items-center px-6 py-2.5 text-sm transition-colors hover:bg-surface-hover/70"
+                  className="grid items-center px-6 py-1.5 text-sm transition-colors hover:bg-surface-hover/70"
                   style={{ gridTemplateColumns: gridTemplate }}
                 >
                   <span className="truncate px-1.5 font-mono text-xs text-fg-faint" title={formatTime(log.timestamp)}>
