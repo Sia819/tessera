@@ -12,7 +12,8 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-CONFIG_PATH = Path(__file__).resolve().parent.parent.parent / "config.toml"
+DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+CONFIG_PATH = DATA_DIR / "config.toml"
 
 _raw_config: dict = {}
 
@@ -20,6 +21,8 @@ _raw_config: dict = {}
 def try_load_config() -> dict | None:
     """config.toml을 로드하여 raw dict로 반환한다. 실패 시 None."""
     global _raw_config
+
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     if not CONFIG_PATH.exists():
         logger.warning("config.toml 없음: %s", CONFIG_PATH)
