@@ -69,14 +69,15 @@ class TestWebhookAuth:
 class TestOpenAPI:
     """V-05: OpenAPI 스펙 노출 차단."""
 
+    @pytest.mark.skipif(not has_static, reason="backend/static/ 없음 (CI)")
     def test_docs_비활성(self):
         """TESSERA_DEBUG 미설정 시 /docs 접근 불가."""
         res = client.get("/docs")
-        # /docs 경로가 없으면 SPA fallback (200) 또는 404
-        # FastAPI docs_url=None이면 라우트 자체가 없음
-        assert res.status_code != 200 or "swagger" not in res.text.lower()
+        # docs_url=None이면 SPA fallback (index.html)
+        assert "swagger" not in res.text.lower()
 
+    @pytest.mark.skipif(not has_static, reason="backend/static/ 없음 (CI)")
     def test_openapi_json_비활성(self):
         """TESSERA_DEBUG 미설정 시 /openapi.json 접근 불가."""
         res = client.get("/openapi.json")
-        assert res.status_code != 200 or "openapi" not in res.text.lower()
+        assert "openapi" not in res.text.lower()
