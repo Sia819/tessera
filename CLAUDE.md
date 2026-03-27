@@ -33,6 +33,7 @@ tessera/
 ├── backend/                          # FastAPI 서버
 │   ├── main.py                       # 엔트리포인트: plugin discovery + SPA 서빙
 │   ├── core/                         # 플러그인-불가지론 인프라
+│   │   ├── auth/                     # Google OAuth + 화이트리스트 인증 (환경 변수 기반)
 │   │   ├── config.py                 # config.toml 로더 (섹션 기반, 전체 raw dict 보관)
 │   │   ├── state.py                  # CoreState: 플러그인별 상태 레지스트리
 │   │   ├── plugin_registry.py        # discover_plugins(): pkgutil 스캔 → 라우터 자동 마운트
@@ -51,6 +52,7 @@ tessera/
 │   │       ├── components/           # View
 │   │       └── hooks/                # ViewModel
 │   ├── features/                     # Core UI 기능 (플러그인 아님)
+│   │   ├── auth/                     # 인증 (useAuth hook + LoginPage)
 │   │   ├── dashboard/                # 통합 대시보드
 │   │   └── logs/                     # 통합 로그 뷰어
 │   └── shared/                       # 크로스-플러그인 공유
@@ -117,6 +119,7 @@ const plugins = [myPlugin]
 
 ## API 라우팅 규칙
 
+- Auth API: `/auth/status`, `/auth/login`, `/auth/callback`, `/auth/logout`
 - Core API: `/api/plugins`, `/health`
 - Plugin API: `/api/plugins/{plugin-id}/*` (자동 prefix)
 - 프론트엔드: `pluginApi('plugin-id').get('/path')` → `/api/plugins/plugin-id/path`
@@ -124,6 +127,22 @@ const plugins = [myPlugin]
 ## Config 소유권
 
 `config.toml`의 각 최상위 섹션은 하나의 플러그인이 소유한다. `PLUGIN_MANIFEST.config_sections`에 선언한 섹션만 읽고 쓴다. 다른 플러그인의 섹션에 접근하지 않는다.
+
+## 인증 (Authentication)
+
+첫 접속 시 관리자가 웹 UI에서 Google OAuth를 설정한다. 설정 전에는 모든 패널 접근이 차단된다.
+
+**플로우**: auth 미설정 → Auth 설정 페이지 → 로그인 → 플러그인 설정 → 대시보드
+
+**설정 저장**: `data/auth.json` (JWT secret 자동 생성)
+**구조**: `backend/core/auth/` (config, middleware, router, jwt_utils)
+**프론트엔드**: `frontend/src/features/auth/` (useAuth hook, LoginPage, AuthSetupPage)
+
+**미들웨어**: 항상 활성. auth 미설정 시 `/api/*` 차단, 설정 후 JWT 검증.
+**우회 경로**: `/auth/*`, `/health`, `/api/plugins/*/webhook/*`, 정적 파일
+**세션**: HTTP-only 쿠키 (JWT HS256, 기본 7일)
+
+인증은 Core 인프라이며, 플러그인이 아니다. 재설정은 `data/auth.json` 삭제 후 재시작.
 
 ## 빌드 파이프라인
 

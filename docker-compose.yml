@@ -1,10 +1,12 @@
+# 로컬 개발/테스트용
+# 사용법: docker compose up --build
 services:
   tessera:
     build: .
     ports:
       - "8000:8000"
     volumes:
-      - ./data:/app/data
+      - ~/docker/tessera/data:/app/data
     restart: unless-stopped
     logging:
       driver: json-file
