@@ -6,8 +6,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend.main import app, STATIC_DIR
+from backend.core.auth.jwt_utils import create_token
 
 client = TestClient(app)
+# 테스트용 세션 쿠키 설정 (conftest에서 auth를 우회하지만 미들웨어가 쿠키를 검증)
+_token = create_token({"email": "test@test.com"}, "test-jwt-secret", 3600)
+client.cookies.set("tessera_session", _token)
 
 has_static = (STATIC_DIR / "index.html").exists()
 
