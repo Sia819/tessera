@@ -165,7 +165,7 @@ export default function App() {
       )}
       <div className="mx-auto flex h-full w-full max-w-[1680px] p-3 sm:p-5">
         <div className="shell-frame grid h-full w-full overflow-hidden lg:grid-cols-[280px_minmax(0,1fr)]">
-          <aside className="flex h-full flex-col overflow-hidden border-b border-edge px-5 py-5 sm:px-6 lg:border-b-0 lg:border-r lg:py-7">
+          <aside className="flex h-full flex-col overflow-y-auto border-b border-edge px-5 py-5 sm:px-6 lg:border-b-0 lg:border-r lg:py-7">
             <div>
               <div className="eyebrow">Operations</div>
               <h1 className="mt-3 text-[1.9rem] font-semibold tracking-tight text-fg">
