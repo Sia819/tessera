@@ -28,7 +28,7 @@ function relativeTime(ts) {
  * IP, 메서드, 경로, 사용자, 이벤트 등 모든 접근 기록을 표시한다.
  */
 export default function SystemLogsTab() {
-  const { logs, totalCount, activeFilter, setActiveFilter, refresh, FILTERS } = useSystemLogs()
+  const { logs, totalCount, activeFilter, setActiveFilter, FILTERS } = useSystemLogs()
 
   return (
     <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-5">
@@ -44,9 +44,10 @@ export default function SystemLogsTab() {
               접속 IP, 인증 시도, API 호출 등 모든 이벤트를 추적합니다. 최근 {totalCount}건.
             </p>
           </div>
-          <button type="button" onClick={refresh} className="secondary-button">
-            새로고침
-          </button>
+          <div className="subtle-chip">
+            <span className="inline-flex h-2 w-2 rounded-full bg-ok status-pulse" />
+            <span>실시간</span>
+          </div>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
