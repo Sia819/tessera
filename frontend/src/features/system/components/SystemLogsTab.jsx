@@ -17,6 +17,9 @@ const COLUMNS = [
   { key: 'event', label: '이벤트', defaultWidth: 70, minWidth: 50 },
 ]
 
+// flex 컬럼(경로)의 인덱스
+const FLEX_INDEX = COLUMNS.findIndex((c) => c.defaultWidth === 0)
+
 function formatTime(ts) {
   return new Date(ts * 1000).toLocaleString('ko-KR', {
     month: '2-digit', day: '2-digit',
@@ -51,12 +54,14 @@ export default function SystemLogsTab() {
     const startX = e.clientX
     const startWidth = widths[colIndex]
     const minW = COLUMNS[colIndex].minWidth
+    // flex 이후 고정 컬럼은 왼쪽 경계 → 드래그 좌=넓어짐, 우=좁아짐 (방향 반전)
+    const inverted = colIndex > FLEX_INDEX && FLEX_INDEX >= 0
 
     const onMove = (ev) => {
       const delta = ev.clientX - startX
       setWidths((prev) => {
         const next = [...prev]
-        next[colIndex] = Math.max(minW, startWidth + delta)
+        next[colIndex] = Math.max(minW, startWidth + (inverted ? -delta : delta))
         return next
       })
     }
@@ -77,6 +82,18 @@ export default function SystemLogsTab() {
   }, [widths])
 
   const gridTemplate = buildGridTemplate(widths)
+
+  // 핸들 배치: 고정 컬럼의 오른쪽 경계 OR flex 이후 고정 컬럼의 왼쪽 경계
+  const renderHandle = (colIndex, position) => (
+    <div
+      className={`group/handle absolute top-0 z-10 flex h-full w-3 cursor-col-resize items-center justify-center ${
+        position === 'right' ? '-right-px' : '-left-px'
+      }`}
+      onPointerDown={(e) => handlePointerDown(colIndex, e)}
+    >
+      <span className="block h-3/5 w-px bg-edge/50 transition-colors group-hover/handle:bg-fg-muted group-active/handle:bg-accent" />
+    </div>
+  )
 
   return (
     <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-5">
@@ -118,19 +135,20 @@ export default function SystemLogsTab() {
 
       {/* 로그 테이블 */}
       <section className="panel flex min-h-0 flex-col overflow-hidden fade-in fade-in-delayed">
-        {/* 컬럼 헤더 (리사이즈 핸들 포함) */}
+        {/* 컬럼 헤더 */}
         <div className="border-b border-edge px-6 py-3 select-none">
           <div className="grid gap-0" style={{ gridTemplateColumns: gridTemplate }}>
             {COLUMNS.map((col, i) => (
               <div key={col.key} className="relative flex items-center">
                 <span className="truncate px-1.5 text-xs font-medium text-fg-faint">{col.label}</span>
-                {/* 리사이즈 핸들 (flex 컬럼과 마지막 컬럼 제외) */}
-                {col.defaultWidth !== 0 && i < COLUMNS.length - 1 && (
-                  <div
-                    className="group/handle absolute -right-px top-0 z-10 flex h-full w-3 cursor-col-resize items-center justify-center"
-                    onPointerDown={(e) => handlePointerDown(i, e)}
-                  >
-                    <span className="block h-3/5 w-px bg-edge/50 transition-colors group-hover/handle:bg-fg-muted group-active/handle:bg-accent" />
+                {/* flex 이전 고정 컬럼: 오른쪽 경계에 핸들 */}
+                {col.defaultWidth !== 0 && i < FLEX_INDEX && renderHandle(i, 'right')}
+                {/* flex 이후 고정 컬럼: 왼쪽 경계에 핸들 */}
+                {col.defaultWidth !== 0 && i > FLEX_INDEX && renderHandle(i, 'left')}
+                {/* 마지막 컬럼 오른쪽 끝 장식 | */}
+                {i === COLUMNS.length - 1 && (
+                  <div className="absolute -right-px top-0 flex h-full items-center">
+                    <span className="block h-3/5 w-px bg-edge/50" />
                   </div>
                 )}
               </div>
