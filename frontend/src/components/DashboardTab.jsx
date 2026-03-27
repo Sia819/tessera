@@ -71,7 +71,7 @@ export default function DashboardTab({ dashboard, logs, syncing, onNavigate }) {
       <div className="panel p-5">
         <div className="flex items-center justify-between">
           <h2 className="eyebrow">최근 로그</h2>
-          <button type="button" onClick={() => onNavigate('logs')} className="secondary-button">
+          <button type="button" onClick={() => onNavigate('github-sync')} className="secondary-button">
             전체 로그
           </button>
         </div>

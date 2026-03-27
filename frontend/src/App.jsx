@@ -1,7 +1,5 @@
-import { useMemo } from 'react'
+import { Suspense, useMemo } from 'react'
 import DashboardTab from './components/DashboardTab'
-import SettingsTab from './components/SettingsTab'
-import LogsTab from './components/LogsTab'
 import SetupWizard from './components/SetupWizard'
 import ThemeToggle from './shared/components/ThemeToggle'
 import Spinner from './shared/components/Spinner'
@@ -13,27 +11,28 @@ import AuthSetupPage from './features/auth/components/AuthSetupPage'
 import { formatRelativeTime } from './shared/utils/formatters'
 import useAuth from './features/auth/hooks/useAuth'
 import useDashboard from './features/dashboard/hooks/useDashboard'
+import plugins from './plugins/registry'
 
-const TABS = [
+const CORE_TABS = [
   {
     key: 'dashboard',
     label: 'Dashboard',
     title: '운영 대시보드',
     description: '통계, 최근 이벤트, 연결된 계정을 하나의 워크스페이스에서 확인합니다.',
   },
-  {
-    key: 'settings',
-    label: 'Settings',
-    title: '연결 설정',
-    description: 'GitHub, Notion, 속성 매핑 구성을 같은 톤으로 관리합니다.',
-  },
-  {
-    key: 'logs',
-    label: 'Logs',
-    title: '운영 로그',
-    description: '최근 동기화 이력과 오류를 빠르게 스캔할 수 있는 로그 스트림입니다.',
-  },
 ]
+
+const PLUGIN_TABS = plugins.flatMap((p) =>
+  p.tabs.map((tab) => ({
+    key: tab.key,
+    label: tab.label,
+    title: tab.title,
+    description: tab.description,
+    component: tab.component,
+  })),
+)
+
+const TABS = [...CORE_TABS, ...PLUGIN_TABS]
 
 export default function App() {
   const { authState, user, error: authError, login, logout, onSetupComplete } = useAuth()
@@ -175,11 +174,6 @@ export default function App() {
                       {tab.description}
                     </div>
                   </div>
-                  {tab.key === 'logs' && logs.length > 0 && (
-                    <span className="rounded-full bg-surface-tertiary px-2 py-1 text-[11px] font-semibold text-fg-muted">
-                      {logs.length}
-                    </span>
-                  )}
                 </button>
               ))}
             </nav>
@@ -276,19 +270,14 @@ export default function App() {
                   />
                 </div>
               )}
-              {activeTab === 'settings' && (
-                <div className="h-full">
-                  <SettingsTab />
-                </div>
-              )}
-              {activeTab === 'logs' && (
-                <div className="h-full">
-                  <LogsTab
-                    logs={logs}
-                    syncing={syncing}
-                    onSync={handleSync}
-                  />
-                </div>
+              {PLUGIN_TABS.map((tab) =>
+                activeTab === tab.key ? (
+                  <div key={tab.key} className="h-full">
+                    <Suspense fallback={<div className="flex h-full items-center justify-center"><Spinner className="h-6 w-6 text-accent" /></div>}>
+                      <tab.component />
+                    </Suspense>
+                  </div>
+                ) : null,
               )}
             </main>
           </section>
@@ -297,4 +286,3 @@ export default function App() {
     </ScreenFrame>
   )
 }
-
