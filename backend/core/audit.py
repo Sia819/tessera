@@ -1,36 +1,22 @@
 """
 시스템 감사 로그.
 
-모든 인증 이벤트와 API 요청을 기록하는 순환 버퍼.
+SQLAlchemy로 data/tessera.db에 영속 저장한다.
 SSE 구독자에게 실시간으로 새 항목을 푸시한다.
 """
 
 import asyncio
-import json
 import time
-from collections import deque
-from dataclasses import dataclass, asdict
 
-MAX_ENTRIES = 500
+from sqlalchemy import select
 
+from backend.core.models import AuditLog
+from backend.core.version import VERSION_STRING
 
-@dataclass
-class AuditEntry:
-    timestamp: float
-    ip: str
-    method: str
-    path: str
-    status: int
-    user: str | None = None
-    event: str | None = None
-    detail: str | None = None
-
-
-_log: deque[AuditEntry] = deque(maxlen=MAX_ENTRIES)
 _subscribers: list[asyncio.Queue] = []
 
 
-def add_entry(
+async def add_entry(
     ip: str,
     method: str,
     path: str,
@@ -39,8 +25,8 @@ def add_entry(
     event: str | None = None,
     detail: str | None = None,
 ) -> None:
-    """감사 로그에 항목을 추가하고 SSE 구독자에게 푸시한다."""
-    entry = AuditEntry(
+    """감사 로그를 DB에 저장하고 SSE 구독자에게 푸시한다."""
+    entry = AuditLog(
         timestamp=time.time(),
         ip=ip,
         method=method,
@@ -49,23 +35,38 @@ def add_entry(
         user=user,
         event=event,
         detail=detail,
+        version=VERSION_STRING,
     )
-    _log.appendleft(entry)
 
-    # 모든 SSE 구독자에게 비동기 푸시
+    from backend.core.database import async_session
+    async with async_session() as session:
+        session.add(entry)
+        await session.commit()
+        await session.refresh(entry)
+
+    # SSE 구독자에게 실시간 푸시
+    entry_dict = _to_dict(entry)
     dead = []
     for q in _subscribers:
         try:
-            q.put_nowait(entry)
+            q.put_nowait(entry_dict)
         except asyncio.QueueFull:
             dead.append(q)
     for q in dead:
         _subscribers.remove(q)
 
 
-def get_entries(limit: int = 200) -> list[dict]:
-    """최근 감사 로그를 반환한다."""
-    return [asdict(e) for e in list(_log)[:limit]]
+async def get_entries(limit: int = 200, event_filter: str | None = None) -> list[dict]:
+    """DB에서 최신 순으로 감사 로그를 조회한다."""
+    from backend.core.database import async_session
+    async with async_session() as session:
+        query = select(AuditLog).order_by(AuditLog.timestamp.desc())
+        if event_filter == "auth":
+            query = query.where(AuditLog.event.isnot(None))
+        elif event_filter == "api":
+            query = query.where(AuditLog.event.is_(None))
+        result = await session.scalars(query.limit(limit))
+        return [_to_dict(row) for row in result]
 
 
 def subscribe() -> asyncio.Queue:
@@ -79,3 +80,18 @@ def unsubscribe(q: asyncio.Queue) -> None:
     """SSE 구독을 해제한다."""
     if q in _subscribers:
         _subscribers.remove(q)
+
+
+def _to_dict(entry: AuditLog) -> dict:
+    return {
+        "id": entry.id,
+        "timestamp": entry.timestamp,
+        "ip": entry.ip,
+        "method": entry.method,
+        "path": entry.path,
+        "status": entry.status,
+        "user": entry.user,
+        "event": entry.event,
+        "detail": entry.detail,
+        "version": entry.version,
+    }

@@ -14,6 +14,7 @@ Tessera 애플리케이션 엔트리포인트.
 """
 
 import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -21,7 +22,9 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.core.config import try_load_config
+from backend.core.database import init_db
 from backend.core.plugin_registry import discover_plugins
+from backend.core.version import VERSION_STRING
 from backend.core.auth import auth_configured
 from backend.core.auth.middleware import AuthMiddleware
 from backend.core.auth.router import router as auth_router
@@ -32,9 +35,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Tessera")
-
 STATIC_DIR = Path(__file__).parent / "static"
+
+
+@asynccontextmanager
+async def lifespan(app):
+    """앱 시작/종료 생명주기."""
+    await init_db()
+    logger.info("DB 초기화 완료 (data/tessera.db)")
+    yield
+
+
+app = FastAPI(title="Tessera", lifespan=lifespan)
 
 # ── 1. Config 로드 ──
 _config = try_load_config()
@@ -66,6 +78,7 @@ async def health():
     from backend.core.plugin_registry import get_registered
     return {
         "status": "ok",
+        "version": VERSION_STRING,
         "plugins": [p["id"] for p in get_registered()],
     }
 

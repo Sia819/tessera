@@ -45,7 +45,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             user = None
             if hasattr(request.state, "user"):
                 user = request.state.user.get("email")
-            audit.add_entry(
+            await audit.add_entry(
                 ip=ip, method=method, path=path,
                 status=response.status_code, user=user,
             )

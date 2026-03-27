@@ -9,6 +9,10 @@ RUN COMMIT_SHA=${COMMIT_SHA} npx vite build --outDir /frontend/dist
 
 # Stage 2: Python 런타임
 FROM python:3.12-slim
+ARG COMMIT_SHA=unknown
+ARG BUILD_TIME=unknown
+ENV TESSERA_COMMIT_SHA=${COMMIT_SHA}
+ENV TESSERA_BUILD_TIME=${BUILD_TIME}
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

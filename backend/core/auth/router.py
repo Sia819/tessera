@@ -115,7 +115,7 @@ async def auth_setup(req: AuthSetupRequest, req_raw: Request):
     reload_auth_config()
 
     ip = _get_client_ip(req_raw)
-    audit.add_entry(ip=ip, method="POST", path="/auth/setup", status=200,
+    await audit.add_entry(ip=ip, method="POST", path="/auth/setup", status=200,
                     event="auth_setup", detail=f"allowed: {', '.join(emails)}")
     logger.info("인증 초기 설정 완료: 허용 이메일 %d개", len(emails))
     return {"status": "ok", "allowed_emails": emails}
@@ -211,7 +211,7 @@ async def auth_callback(request: Request, code: str = "", state: str = ""):
     ip = _get_client_ip(request)
 
     if email not in cfg.allowed_emails:
-        audit.add_entry(ip=ip, method="GET", path="/auth/callback", status=403,
+        await audit.add_entry(ip=ip, method="GET", path="/auth/callback", status=403,
                         event="login_rejected", user=email, detail="not in whitelist")
         logger.warning("Login rejected: %s not in allowed_emails", email)
         return RedirectResponse(url="/?auth_error=not_whitelisted")
@@ -234,7 +234,7 @@ async def auth_callback(request: Request, code: str = "", state: str = ""):
     )
     response.delete_cookie(key="tessera_oauth_state", path="/auth")
 
-    audit.add_entry(ip=ip, method="GET", path="/auth/callback", status=302,
+    await audit.add_entry(ip=ip, method="GET", path="/auth/callback", status=302,
                     event="login_success", user=email)
     return response
 

@@ -24,9 +24,9 @@ async def list_plugins():
 
 
 @router.get("/api/system/logs")
-async def system_logs(limit: int = 200):
+async def system_logs(limit: int = 200, filter: str | None = None):
     """시스템 감사 로그를 반환한다."""
-    return {"logs": audit.get_entries(min(limit, 500))}
+    return {"logs": await audit.get_entries(min(limit, 500), event_filter=filter)}
 
 
 @router.get("/api/system/logs/stream")

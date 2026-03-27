@@ -1,8 +1,30 @@
 """공통 테스트 fixture."""
 
+import asyncio
+
 import pytest
 
 from backend.core.auth.config import AuthConfig
+
+# 테스트용 in-memory SQLite (파일 DB 대신)
+import backend.core.database as db_module
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlalchemy.pool import StaticPool
+
+_test_engine = create_async_engine(
+    "sqlite+aiosqlite://",
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
+_test_session = async_sessionmaker(_test_engine, expire_on_commit=False)
+db_module.engine = _test_engine
+db_module.async_session = _test_session
+
+# 모델 등록 + 테이블 생성
+import backend.core.models  # noqa: F401 — Base.metadata에 모델 등록
+loop = asyncio.new_event_loop()
+loop.run_until_complete(db_module.init_db())
+loop.close()
 
 
 # auth 미들웨어 우회: 테스트 환경에서는 인증 통과
